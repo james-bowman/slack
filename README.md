@@ -6,7 +6,7 @@ To make use of the API, you will need to setup a user account or a ['bot' user](
 
 Once you have a user account and an authentication token you can use the API to connect to slack.  Here is an example:
 
-'''
+``` go
 conn, err := slack.Connect(slackToken)
 	
 if err != nil {
@@ -20,7 +20,7 @@ conn.Start(func(msg slack.Event) *slack.Event {
 		return nil
 	} 
 })
-'''
+```
 
 The above snippet of code connects to the Slack RTM API over a web socket and starts listening for all events.  If the event is a message, it will repeat the same message back to Slack.
 
