@@ -20,7 +20,7 @@ conn.Start(func(msg slack.Event) *slack.Event {
 		return nil
 	} 
 })
-
 '''
+
 The above snippet of code connects to the Slack RTM API over a web socket and starts listening for all events.  If the event is a message, it will repeat the same message back to Slack.
 
