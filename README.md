@@ -6,7 +6,7 @@ To make use of the API, you will need to setup a user account or a ['bot' user](
 
 Once you have a user account and an authentication token you can use the API to connect to slack.  Here is an example:
 
-''' go
+'''
 conn, err := slack.Connect(slackToken)
 	
 if err != nil {
