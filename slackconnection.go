@@ -89,21 +89,20 @@ func (c *Connection) readPump() {
 
 type Event struct {
 	Id int `json:"id"`
+	ReplyTo int `json:"reply_to"`
 	Type string `json:"type"`
 	User string `json:"user"`
 	Channel string `json:"channel"`
 	Text string `json:"text"`
 }
 
-type messageProcessor func(Event, int) ([]byte, error)
+type messageProcessor func(Event) *Event
 
 func (c *Connection) process(processMessage messageProcessor) {
 	sequence := 0
 	
 	for {
 		msg := <-c.In
-		
-		log.Printf("%s", msg)
 		
 		var data Event
 		err := json.Unmarshal(msg, &data)
@@ -116,14 +115,17 @@ func (c *Connection) process(processMessage messageProcessor) {
 			}
 		}
 	
-		response, err := processMessage(data, sequence)
+		response := processMessage(data)
 		
-		if err != nil {
-			log.Println(err)
-		} else {
-			if response != nil {
-				c.Out <- response
+		if response != nil {
+			sequence++
+			response.Id = sequence
+			responseJson, err := json.Marshal(response)
+			if err != nil {
+				log.Println(err)
 			}
+			
+			c.Out <- responseJson
 		}
 	}
 }

@@ -23,8 +23,6 @@ func handshake(apiUrl string, token string) (*Config, error) {
 		return nil, err
 	}
 	
-	log.Printf("Config: %s", body)
-	
 	var data Config
 	err = json.Unmarshal(body, &data)
 	if err != nil {
