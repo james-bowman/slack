@@ -31,6 +31,7 @@ func handshake(apiUrl string, token string) (*Config, error) {
 			case *json.SyntaxError:
 				log.Println(string(body[v.Offset-40:v.Offset]))
 		}
+		log.Printf("%s", body)
 		return nil, err
 	}
 

@@ -26,6 +26,8 @@ const (
 type Connection struct {
 	// The websocket connection.
 	ws *websocket.Conn
+	
+	sequence int
 
 	// Buffered channel of outbound messages.
 	Out chan []byte
@@ -41,8 +43,8 @@ func (c *Connection) write(mt int, payload []byte) error {
 	return c.ws.WriteMessage(mt, payload)
 }
 
-// writePump pumps messages from the hub to the websocket connection.
-func (c *Connection) writePump() {
+// socketWriter writes messages to the websocket connection.
+func (c *Connection) socketWriter() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -69,12 +71,11 @@ func (c *Connection) writePump() {
 	}
 }
 
-// readPump pumps messages from the websocket connection to the hub.
-func (c *Connection) readPump() {
+// socketReader reads messages from the websocket connection.
+func (c *Connection) socketReader() {
 	defer func() {
 		c.ws.Close()
 	}()
-	c.ws.SetReadLimit(maxMessageSize)
 	c.ws.SetReadDeadline(time.Now().Add(pongWait))
 	c.ws.SetPongHandler(func(string) error { c.ws.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
@@ -87,6 +88,20 @@ func (c *Connection) readPump() {
 	}
 }
 
+func (c *Connection) Send(response *Event) error {
+	c.sequence++
+	response.Id = c.sequence
+	responseJson, err := json.Marshal(response)
+	if err != nil {
+		return err
+	}
+		
+	c.Out <- responseJson
+	
+	return nil
+}
+
+
 type Event struct {
 	Id int `json:"id"`
 	ReplyTo int `json:"reply_to"`
@@ -98,9 +113,7 @@ type Event struct {
 
 type messageProcessor func(Event) *Event
 
-func (c *Connection) process(processMessage messageProcessor) {
-	sequence := 0
-	
+func (c *Connection) process(processMessage messageProcessor) {	
 	for {
 		msg := <-c.In
 		
@@ -113,19 +126,19 @@ func (c *Connection) process(processMessage messageProcessor) {
 				case *json.SyntaxError:
 					log.Println(string(msg[v.Offset-40:v.Offset]))
 			}
+			log.Printf("%s", msg)
+			continue
 		}
 	
 		response := processMessage(data)
 		
 		if response != nil {
-			sequence++
-			response.Id = sequence
-			responseJson, err := json.Marshal(response)
+			err := c.Send(response)
+			
 			if err != nil {
 				log.Println(err)
+				log.Println(response)
 			}
-			
-			c.Out <- responseJson
 		}
 	}
 }
@@ -133,6 +146,6 @@ func (c *Connection) process(processMessage messageProcessor) {
 func (c *Connection) Start(processMessage messageProcessor) {
 	go c.process(processMessage)
 
-	go c.writePump()
-	c.readPump()
+	go c.socketWriter()
+	c.socketReader()
 }
