@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 	"encoding/json"
+	"regexp"
+	"strings"
 )
 
 const (
@@ -88,9 +90,11 @@ func (c *Connection) socketReader() {
 	}
 }
 
-func (c *Connection) Send(response *Event) error {
+func (c *Connection) SendMessage(channel string, text string) error {
 	c.sequence++
-	response.Id = c.sequence
+	
+	response := &event{Id: c.sequence, Type: "message", Channel: channel, Text: text}
+
 	responseJson, err := json.Marshal(response)
 	if err != nil {
 		return err
@@ -101,8 +105,7 @@ func (c *Connection) Send(response *Event) error {
 	return nil
 }
 
-
-type Event struct {
+type event struct {
 	Id int `json:"id"`
 	ReplyTo int `json:"reply_to"`
 	Type string `json:"type"`
@@ -111,13 +114,13 @@ type Event struct {
 	Text string `json:"text"`
 }
 
-type messageProcessor func(Event) *Event
+type messageProcessor func(*Message)
 
 func (c *Connection) process(processMessage messageProcessor) {	
 	for {
 		msg := <-c.In
 		
-		var data Event
+		var data event
 		err := json.Unmarshal(msg, &data)
 	
 		if err != nil {
@@ -130,14 +133,43 @@ func (c *Connection) process(processMessage messageProcessor) {
 			continue
 		}
 	
-		response := processMessage(data)
-		
-		if response != nil {
-			err := c.Send(response)
-			
-			if err != nil {
-				log.Println(err)
-				log.Println(response)
+		c.filterMessage(data, processMessage)
+	}
+}
+
+func (c *Connection) findUser(user string) (string, bool) {
+	var users []User
+	
+	users = c.Config.Users
+	
+	for i := 0; i < len(users); i++ {
+		if users[i].Id == user {
+			return users[i].RealName, true
+		}
+	}
+	
+	return "", false
+}
+
+func (c *Connection) filterMessage(data event, processMessage messageProcessor) {
+	if data.Type == "message" && data.ReplyTo == 0 {
+		from, _ := c.findUser(data.User)
+	
+		// process messages in directed at Talbot
+		r, _ := regexp.Compile("^(<@" + c.Config.Self.Id + ">|@?" + c.Config.Self.Name + "):? (.+)")
+					
+		matches := r.FindStringSubmatch(data.Text)
+				
+		if len(matches) == 3 {
+			m := &Message{con: c, replier: reply, Text: matches[2], From: from, fromId: data.User, channel: data.Channel}
+			processMessage(m)	
+		} else if data.Channel[0] == 'D' {
+			// process direct messages
+			m := &Message{con: c, replier: send, Text: data.Text, From: from, fromId: data.User, channel: data.Channel}
+			processMessage(m)
+		} else {
+			if strings.Contains(strings.ToUpper(data.Text), "BATCH") {
+				c.SendMessage(data.Channel, "<@" + data.User + ">: Language Error: I don't understand the term 'Batch' please re-state using goal orientated language")
 			}
 		}
 	}
