@@ -3,11 +3,9 @@ package slack
 import (
 	"github.com/gorilla/websocket"
 	"log"
-	"fmt"
 	"time"
 	"encoding/json"
-	"regexp"
-	"strings"
+	"sync"
 )
 
 const (
@@ -31,12 +29,15 @@ type Connection struct {
 	
 	sequence int
 
+	wg sync.WaitGroup
+	finish chan struct{}
+	
 	// Buffered channel of outbound messages.
-	Out chan []byte
+	out chan []byte
 	
 	In chan []byte
 	
-	Config Config
+	config Config
 }
 
 // write writes a message with the given message type and payload.
@@ -47,62 +48,58 @@ func (c *Connection) write(mt int, payload []byte) error {
 
 // socketWriter writes messages to the websocket connection.
 func (c *Connection) socketWriter() {
+	c.wg.Add(1)
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		log.Println("Closing socket writer")
 		ticker.Stop()
 		c.ws.Close()
+		c.wg.Done()
 	}()
 	for {
 		select {
-		case message, ok := <-c.Out:
+		case message, ok := <-c.out:
 			if !ok {
+				// channel closed so close the websocket
 				c.write(websocket.CloseMessage, []byte{})
 				log.Println("Closing socket")
 				return
 			}
 			if err := c.write(websocket.TextMessage, message); err != nil {
-				log.Println(err)
+				// error writing to websocket
+				log.Printf("Error writing to slack websocket: %s", err)
 				return
 			}
 		case <-ticker.C:
+			// if idle send a ping
 			if err := c.write(websocket.PingMessage, []byte{}); err != nil {
-				log.Println(err)
+				log.Printf("Error sending ping on slack websocket: %s", err)
 				return
 			}
+		case <-c.finish:
+			return
 		}
 	}
 }
 
 // socketReader reads messages from the websocket connection.
 func (c *Connection) socketReader() {
+	c.wg.Add(1)
 	defer func() {
+		log.Println("Closing socket reader")
 		c.ws.Close()
+		c.wg.Done()
 	}()
 	c.ws.SetReadDeadline(time.Now().Add(pongWait))
 	c.ws.SetPongHandler(func(string) error { c.ws.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, message, err := c.ws.ReadMessage()
 		if err != nil {
-			log.Println(err)
+			log.Printf("Error reading from slack websocket: %s",err)
 			break
 		}
 		c.In <- message
 	}
-}
-
-func (c *Connection) SendMessage(channel string, text string) error {
-	c.sequence++
-	
-	response := &event{Id: c.sequence, Type: "message", Channel: channel, Text: text}
-
-	responseJson, err := json.Marshal(response)
-	if err != nil {
-		return err
-	}
-		
-	c.Out <- responseJson
-	
-	return nil
 }
 
 type event struct {
@@ -114,70 +111,57 @@ type event struct {
 	Text string `json:"text"`
 }
 
-type messageProcessor func(*Message)
+func (c *Connection) sendEvent(eventType string, channel string, text string) error {
+	c.sequence++
+	
+	response := &event{Id: c.sequence, Type: eventType, Channel: channel, Text: text}
 
-func (c *Connection) process(processMessage messageProcessor) {	
-	for {
-		msg := <-c.In
+	responseJson, err := json.Marshal(response)
+	if err != nil {
+		return err
+	}
 		
-		var data event
-		err := json.Unmarshal(msg, &data)
+	c.out <- responseJson
 	
-		if err != nil {
-			fmt.Printf("%T\n%s\n%#v\n", err, err, err)
-			switch v := err.(type) {
-				case *json.SyntaxError:
-					log.Println(string(msg[v.Offset-40:v.Offset]))
-			}
-			log.Printf("%s", msg)
-			continue
-		}
-	
-		c.filterMessage(data, processMessage)
-	}
+	return nil
 }
 
-func (c *Connection) findUser(user string) (string, bool) {
-	var users []User
-	
-	users = c.Config.Users
-	
-	for i := 0; i < len(users); i++ {
-		if users[i].Id == user {
-			return users[i].RealName, true
-		}
-	}
-	
-	return "", false
+func (c *Connection) SendMessage(channel string, text string) error {
+	return c.sendEvent("message", channel, text)
 }
 
-func (c *Connection) filterMessage(data event, processMessage messageProcessor) {
-	if data.Type == "message" && data.ReplyTo == 0 {
-		from, _ := c.findUser(data.User)
-	
-		// process messages in directed at Talbot
-		r, _ := regexp.Compile("^(<@" + c.Config.Self.Id + ">|@?" + c.Config.Self.Name + "):? (.+)")
-					
-		matches := r.FindStringSubmatch(data.Text)
-				
-		if len(matches) == 3 {
-			m := &Message{con: c, replier: reply, Text: matches[2], From: from, fromId: data.User, channel: data.Channel}
-			processMessage(m)	
-		} else if data.Channel[0] == 'D' {
-			// process direct messages
-			m := &Message{con: c, replier: send, Text: data.Text, From: from, fromId: data.User, channel: data.Channel}
-			processMessage(m)
-		} else {
-			if strings.Contains(strings.ToUpper(data.Text), "BATCH") {
-				c.SendMessage(data.Channel, "<@" + data.User + ">: Language Error: I don't understand the term 'Batch' please re-state using goal orientated language")
+func (c *Connection) start(url string, token string) {
+	for {
+		c.finish = make(chan struct{})
+		
+		go c.socketWriter()
+		c.socketReader()
+		
+		close(c.finish)
+		c.wg.Wait()
+		
+		connected := false
+		var ws *websocket.Conn
+		var config *Config
+		
+		for i := 1; !connected; i = i * 2 {
+			log.Printf("Lost connection to Slack - reconnecting in %d seconds", i)
+		
+			// wait 10 seconds before trying to reconnect
+			time.Sleep(time.Duration(i)*time.Second)
+		
+			var err error
+			config, ws, err = connectAndUpgrade(url, token)
+		
+			if err != nil {
+				log.Printf("Error reconnecting: %s", err)
+			} else {
+				log.Printf("Connected to Slack")
+				connected = true
 			}
 		}
+		
+		c.ws = ws
+		c.config = *config
 	}
-}
-
-func (c *Connection) Start(processMessage messageProcessor) {
-	go c.process(processMessage)
-
-	go c.socketWriter()
-	c.socketReader()
 }

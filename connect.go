@@ -38,20 +38,34 @@ func handshake(apiUrl string, token string) (*Config, error) {
 	return &data, nil
 }
 
-func Connect(token string) (*Connection, error) {
-	apiStartUrl := "https://slack.com/api/rtm.start"
-	config, err := handshake(apiStartUrl, token)
+func connectAndUpgrade(url string, token string) (*Config, *websocket.Conn, error) {
+	config, err := handshake(url, token)
 	
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	
 	conn, _, err := websocket.DefaultDialer.Dial(config.Url, http.Header{})
 	
 	if err != nil {
+		return nil, nil, err
+	}
+	
+	return config, conn, nil
+}
+
+func Connect(token string) (*Connection, error) {
+	apiStartUrl := "https://slack.com/api/rtm.start"
+	
+	config, conn, err := connectAndUpgrade(apiStartUrl, token)
+		
+	if err != nil {
 		return nil, err
 	}
 	
-	c := Connection{ws: conn, Out: make(chan []byte, 256), In: make(chan []byte, 256), Config: *config}
+	c := Connection{ws: conn, out: make(chan []byte, 256), In: make(chan []byte, 256), config: *config}
+	
+	go c.start(apiStartUrl, token) 
+	
 	return &c, nil
 }

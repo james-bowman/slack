@@ -7,8 +7,6 @@ import (
 type Message struct {
 	con *Connection
 	
-	isDirected bool
-	
 	replier func(*Message, string)
 	
 	Text string

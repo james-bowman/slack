@@ -12,15 +12,11 @@ conn, err := slack.Connect(slackToken)
 if err != nil {
 	log.Fatal(err)
 }
-		
-conn.Start(func(msg slack.Event) *slack.Event {
-	if msg.Type == "message" {
-		return &slack.Event{Type: "message", Channel: msg.Channel, Text: msg.Text}
-	} else {
-		return nil
-	} 
+
+slack.EventProcessor(conn, func(msg *slack.Message) {
+	msg.Respond(message.Text)
 })
 ```
 
-The above snippet of code connects to the Slack RTM API over a web socket and starts listening for all events.  If the event is a message, it will repeat the same message back to Slack.
+The above snippet of code connects to the Slack RTM API over a web socket and starts listening for messages directed at the user account used to connect to slack (either a direct message or a message in a channel preceded by @<username>: ).  Tt will then repeat the same message back to Slack.
 
