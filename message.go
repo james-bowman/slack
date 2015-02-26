@@ -1,5 +1,9 @@
 package slack
 
+import (
+	"log"
+)
+
 type Message struct {
 	con *Connection
 	
@@ -19,7 +23,7 @@ func (m *Message) Send(text string) {
 }
 
 func (m *Message) Reply(text string) {
-	m.Send(text)
+	m.Send("<@" + m.fromId + ">: " + text)
 }
 
 func (m *Message) Respond(text string) {
@@ -28,9 +32,11 @@ func (m *Message) Respond(text string) {
 
 
 func reply(m *Message, text string) {
+	log.Println("Replying")
 	m.Reply(text)
 }
 
 func send(m *Message, text string) {
+	log.Println("Sending")
 	m.Send(text)
 }
