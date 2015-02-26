@@ -1,9 +1,5 @@
 package slack
 
-import (
-
-)
-
 type Message struct {
 	con *Connection
 	

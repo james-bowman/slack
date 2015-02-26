@@ -13,10 +13,12 @@ if err != nil {
 	log.Fatal(err)
 }
 
-slack.EventProcessor(conn, func(msg *slack.Message) {
+handler := func(msg *slack.Message) {
 	msg.Respond(message.Text)
-})
+}
+
+slack.EventProcessor(conn, handler, handler)
 ```
 
-The above snippet of code connects to the Slack RTM API over a web socket and starts listening for messages directed at the user account used to connect to slack (either a direct message or a message in a channel preceded by @<username>: ).  Tt will then repeat the same message back to Slack.
+The above snippet of code connects to the Slack RTM API over a web socket and starts listening for all messages and those directed specifically at the user account used to connect to slack (either a direct message or a message in a channel preceded by @<username>: ).  Tt will then repeat the same message back to Slack.
 
