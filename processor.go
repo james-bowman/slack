@@ -34,7 +34,7 @@ func EventProcessor(con *Connection, respond messageProcessor, hear messageProce
 		var isMessageChangedEvent bool
 		
 		if ok {
-			isMessageChangedEvent = (subtype.(string) == "message_changed")
+			isMessageChangedEvent = (subtype.(string) == "message_changed" || subtype.(string) == "message_deleted")
 		}
 	
 		if !isReply && !isMessageChangedEvent {
