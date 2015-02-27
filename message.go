@@ -1,13 +1,10 @@
 package slack
 
-import (
-	"log"
-)
 
 type Message struct {
 	con *Connection
 	
-	replier func(*Message, string)
+	responseStrategy func(*Message, string)
 	
 	Text string
 	From string
@@ -27,16 +24,14 @@ func (m *Message) Reply(text string) {
 }
 
 func (m *Message) Respond(text string) {
-	m.replier(m, text)
+	m.responseStrategy(m, text)
 }
 
 
 func reply(m *Message, text string) {
-	log.Println("Replying")
 	m.Reply(text)
 }
 
 func send(m *Message, text string) {
-	log.Println("Sending")
 	m.Send(text)
 }

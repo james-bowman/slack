@@ -77,18 +77,18 @@ func filterMessage(con *Connection, data map[string]interface{}, respond message
 				
 	if len(matches) == 3 {
 		if respond != nil {
-			m := &Message{con: con, replier: reply, Text: matches[2], From: userFullName, fromId: userId, channel: data["channel"].(string)}
+			m := &Message{con: con, responseStrategy: reply, Text: matches[2], From: userFullName, fromId: userId, channel: data["channel"].(string)}
 			respond(m)	
 		}
 	} else if data["channel"].(string)[0] == 'D' {
 		if respond != nil {
 			// process direct messages
-			m := &Message{con: con, replier: send, Text: data["text"].(string), From: userFullName, fromId: userId, channel: data["channel"].(string)}
+			m := &Message{con: con, responseStrategy: send, Text: data["text"].(string), From: userFullName, fromId: userId, channel: data["channel"].(string)}
 			respond(m)
 		}
 	} else {
 		if hear != nil {
-			m := &Message{con: con, replier: reply, Text: data["text"].(string), From: userFullName, fromId: userId, channel: data["channel"].(string)}
+			m := &Message{con: con, responseStrategy: reply, Text: data["text"].(string), From: userFullName, fromId: userId, channel: data["channel"].(string)}
 			hear(m)
 		}
 	}
