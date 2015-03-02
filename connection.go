@@ -104,9 +104,7 @@ func (c *Connection) socketReader() {
 
 type event struct {
 	Id int `json:"id"`
-	ReplyTo int `json:"reply_to"`
 	Type string `json:"type"`
-	User string `json:"user"`
 	Channel string `json:"channel"`
 	Text string `json:"text"`
 }
@@ -130,7 +128,7 @@ func (c *Connection) SendMessage(channel string, text string) error {
 	return c.sendEvent("message", channel, text)
 }
 
-func (c *Connection) start(url string, token string) {
+func (c *Connection) start(reconnectionHandler func() (*Config, *websocket.Conn, error)) {
 	for {
 		c.finish = make(chan struct{})
 		
@@ -151,7 +149,7 @@ func (c *Connection) start(url string, token string) {
 			time.Sleep(time.Duration(i)*time.Second)
 		
 			var err error
-			config, ws, err = connectAndUpgrade(url, token)
+			config, ws, err = reconnectionHandler()
 		
 			if err != nil {
 				log.Printf("Error reconnecting: %s", err)

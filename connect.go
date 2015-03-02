@@ -65,7 +65,10 @@ func Connect(token string) (*Connection, error) {
 	
 	c := Connection{ws: conn, out: make(chan []byte, 256), In: make(chan []byte, 256), config: *config}
 	
-	go c.start(apiStartUrl, token) 
+	go c.start(func() (*Config, *websocket.Conn, error) {
+		config, con, err := connectAndUpgrade(apiStartUrl, token)
+		return config, con, err
+	}) 
 	
 	return &c, nil
 }
