@@ -1,7 +1,8 @@
 package slack
 
 import (
-	"github.com/gorilla/websocket"
+//	"github.com/gorilla/websocket"
+	"github.com/james-bowman/websocket"
 	"net/http"
 	"net/url"
 	"io/ioutil"

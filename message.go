@@ -15,6 +15,10 @@ type Message struct {
 
 type responder func(string)
 
+func (m *Message) Tell(channel string, text string) {
+	m.con.SendMessage(channel, text)
+}
+
 func (m *Message) Send(text string) {
 	m.con.SendMessage(m.channel, text)
 }
