@@ -72,8 +72,13 @@ func filterMessage(con *Connection, data map[string]interface{}, respond message
 	
 	// process messages directed at Talbot
 	r, _ := regexp.Compile("^(<@" + con.config.Self.Id + ">|@?" + con.config.Self.Name + "):? (.+)")
+	
+	text, ok := data["text"]
+	if !ok {
+		return
+	}
 					
-	matches := r.FindStringSubmatch(data["text"].(string))
+	matches := r.FindStringSubmatch(text.(string))
 				
 	if len(matches) == 3 {
 		if respond != nil {
@@ -83,12 +88,12 @@ func filterMessage(con *Connection, data map[string]interface{}, respond message
 	} else if data["channel"].(string)[0] == 'D' {
 		if respond != nil {
 			// process direct messages
-			m := &Message{con: con, responseStrategy: send, Text: data["text"].(string), From: userFullName, fromId: userId, channel: data["channel"].(string)}
+			m := &Message{con: con, responseStrategy: send, Text: text.(string), From: userFullName, fromId: userId, channel: data["channel"].(string)}
 			respond(m)
 		}
 	} else {
 		if hear != nil {
-			m := &Message{con: con, responseStrategy: reply, Text: data["text"].(string), From: userFullName, fromId: userId, channel: data["channel"].(string)}
+			m := &Message{con: con, responseStrategy: reply, Text: text.(string), From: userFullName, fromId: userId, channel: data["channel"].(string)}
 			hear(m)
 		}
 	}
