@@ -93,7 +93,7 @@ func filterMessage(con *Connection, data map[string]interface{}, respond message
 		}
 	} else {
 		if hear != nil {
-			m := &Message{con: con, responseStrategy: reply, Text: text.(string), From: userFullName, fromId: userId, channel: data["channel"].(string)}
+			m := &Message{con: con, responseStrategy: send, Text: text.(string), From: userFullName, fromId: userId, channel: data["channel"].(string)}
 			hear(m)
 		}
 	}
