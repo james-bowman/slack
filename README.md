@@ -20,7 +20,7 @@ replier := func(msg *slack.Message) {
 slack.EventProcessor(conn, replier, nil)
 ```
 
-The above snippet of code connects to the Slack RTM API over a web socket and starts listening for all messages directed specifically at the user account used to connect to slack (either a direct message or a message in a channel preceded by @<username>: ).  It will then echo the same message back to Slack.
+The above snippet of code connects to the Slack RTM API over a web socket and starts listening for all messages directed specifically at the user account used to connect to slack (either a direct message or a message in a channel preceded by '@_username_:' ).  It will then echo the same message back to Slack.
 
 To also process messages not directed specifically at the connected user, a similar function can be passed as the third parameter to the EventProcessor method (either in addition to or instead of the second parameter).
 
@@ -30,7 +30,7 @@ Features implemented
 
 - Processing Slack message events
 - Option to respond 
-    - just to directed messages (those sent as private messages or preceeded by @<username>: in open channels)
+    - just to directed messages (those sent as private messages or preceeded by '@_username_:' in open channels)
     - to all messages 
     - or to both directed and all messages independently.
 - Sending messages to Slack
