@@ -35,6 +35,7 @@ Features implemented
     - or to both directed and all messages independently.
 - Sending messages to Slack
 - Automatic reconnection following a lost connection
+- Support for explicit web proxies (running on corporate LANs)
 
 ##To Do
 
