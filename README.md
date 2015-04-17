@@ -13,12 +13,35 @@ if err != nil {
 	log.Fatal(err)
 }
 
-handler := func(msg *slack.Message) {
-	msg.Respond(message.Text)
+replier := func(msg *slack.Message) {
+	msg.Respond(msg.Text)
 }
 
-slack.EventProcessor(conn, handler, handler)
+slack.EventProcessor(conn, replier, nil)
 ```
 
-The above snippet of code connects to the Slack RTM API over a web socket and starts listening for all messages and those directed specifically at the user account used to connect to slack (either a direct message or a message in a channel preceded by @<username>: ).  Tt will then repeat the same message back to Slack.
+The above snippet of code connects to the Slack RTM API over a web socket and starts listening for all messages directed specifically at the user account used to connect to slack (either a direct message or a message in a channel preceded by @<username>: ).  It will then echo the same message back to Slack.
+
+To also process messages not directed specifically at the connected user, a similar function can be passed as the third parameter to the EventProcessor method (either in addition to or instead of the second parameter).
+
+##Features
+
+Features implemented
+
+- Processing Slack message events
+- Option to respond 
+    - just to directed messages (those sent as private messages or preceeded by @<username>: in open channels)
+    - to all messages 
+    - or to both directed and all messages independently.
+- Sending messages to Slack
+- Automatic reconnection following a lost connection
+
+##To Do
+
+Still outstanding...
+
+- Reliable message sending i.e. checking for Ack's for sent messages (especially upon reconnection)
+- Processing of Slack message changed events (currently ignored)
+- Processing other Slack event types
+- Updating configuration based upon new member events, etc.
 
