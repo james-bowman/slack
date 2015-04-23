@@ -1,4 +1,4 @@
-#Slack RTM (Real Time Messaging) API Integration
+# Slack RTM (Real Time Messaging) API Integration
 
 This package allows integration with the [Slack Real Time Messaging API](https://api.slack.com/rtm) for consuming and publishing messages in real time to/from [Slack](https://slack.com).
 
@@ -24,7 +24,7 @@ The above snippet of code connects to the Slack RTM API over a web socket and st
 
 To also process messages not directed specifically at the connected user, a similar function can be passed as the third parameter to the EventProcessor method (either in addition to or instead of the second parameter).
 
-##Features
+## Features
 
 Features implemented
 
@@ -37,7 +37,7 @@ Features implemented
 - Automatic reconnection following a lost connection
 - Support for explicit web proxies (running on corporate LANs)
 
-##To Do
+## To Do
 
 Still outstanding...
 
