@@ -1,17 +1,17 @@
 package slack
 
 import (
-//	"github.com/gorilla/websocket"
+	//	"github.com/gorilla/websocket"
+	"encoding/json"
 	"github.com/james-bowman/websocket"
-	"net/http"
-	"net/url"
 	"io/ioutil"
 	"log"
-	"encoding/json"
+	"net/http"
+	"net/url"
 )
 
 func handshake(apiUrl string, token string) (*Config, error) {
-	resp, err := http.PostForm(apiUrl, url.Values{"token":{token}})
+	resp, err := http.PostForm(apiUrl, url.Values{"token": {token}})
 
 	if err != nil {
 		return nil, err
@@ -23,14 +23,14 @@ func handshake(apiUrl string, token string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var data Config
 	err = json.Unmarshal(body, &data)
 	if err != nil {
 		log.Printf("%T\n%s\n%#v\n", err, err, err)
 		switch v := err.(type) {
-			case *json.SyntaxError:
-				log.Println(string(body[v.Offset-40:v.Offset]))
+		case *json.SyntaxError:
+			log.Println(string(body[v.Offset-40 : v.Offset]))
 		}
 		log.Printf("%s", body)
 		return nil, err
@@ -41,35 +41,35 @@ func handshake(apiUrl string, token string) (*Config, error) {
 
 func connectAndUpgrade(url string, token string) (*Config, *websocket.Conn, error) {
 	config, err := handshake(url, token)
-	
+
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	conn, _, err := websocket.DefaultDialer.Dial(config.Url, http.Header{})
-	
+
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	return config, conn, nil
 }
 
 func Connect(token string) (*Connection, error) {
 	apiStartUrl := "https://slack.com/api/rtm.start"
-	
+
 	config, conn, err := connectAndUpgrade(apiStartUrl, token)
-		
+
 	if err != nil {
 		return nil, err
 	}
-	
-	c := Connection{ws: conn, out: make(chan []byte, 256), In: make(chan []byte, 256), config: *config}
-	
-	go c.start(func() (*Config, *websocket.Conn, error) {
+
+	c := Connection{ws: conn, out: make(chan []byte, 256), in: make(chan []byte, 256), config: *config}
+
+	c.start(func() (*Config, *websocket.Conn, error) {
 		config, con, err := connectAndUpgrade(apiStartUrl, token)
 		return config, con, err
-	}) 
-	
+	})
+
 	return &c, nil
 }

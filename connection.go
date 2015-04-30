@@ -1,12 +1,11 @@
 package slack
 
 import (
-//	"github.com/gorilla/websocket"
+	//	"github.com/gorilla/websocket"
 	"github.com/james-bowman/websocket"
 	"log"
-	"time"
-	"encoding/json"
 	"sync"
+	"time"
 )
 
 const (
@@ -23,31 +22,30 @@ const (
 	maxMessageSize = 1024
 )
 
-
 type Connection struct {
 	// The websocket connection.
 	ws *websocket.Conn
-	
-	sequence int
 
-	wg sync.WaitGroup
+	// Concurrency synchronisation for automatic reconnection.
+	wg     sync.WaitGroup
 	finish chan struct{}
-	
+
 	// Buffered channel of outbound messages.
 	out chan []byte
-	
-	In chan []byte
-	
+
+	// Buffered channel of inbound messages.
+	in chan []byte
+
 	config Config
 }
 
-// write writes a message with the given message type and payload.
+// write a message with the given message type and payload.
 func (c *Connection) write(mt int, payload []byte) error {
 	c.ws.SetWriteDeadline(time.Now().Add(writeWait))
 	return c.ws.WriteMessage(mt, payload)
 }
 
-// socketWriter writes messages to the websocket connection.
+// socketWriter writes queued messages to the websocket connection.
 func (c *Connection) socketWriter() {
 	c.wg.Add(1)
 	ticker := time.NewTicker(pingPeriod)
@@ -83,7 +81,7 @@ func (c *Connection) socketWriter() {
 	}
 }
 
-// socketReader reads messages from the websocket connection.
+// socketReader reads messages from the websocket connection and queues them for processing.
 func (c *Connection) socketReader() {
 	c.wg.Add(1)
 	defer func() {
@@ -96,71 +94,59 @@ func (c *Connection) socketReader() {
 	for {
 		_, message, err := c.ws.ReadMessage()
 		if err != nil {
-			log.Printf("Error reading from slack websocket: %s",err)
+			log.Printf("Error reading from slack websocket: %s", err)
 			break
 		}
-		c.In <- message
+		c.in <- message
 	}
 }
 
-type event struct {
-	Id int `json:"id"`
-	Type string `json:"type"`
-	Channel string `json:"channel"`
-	Text string `json:"text"`
+// Write the specified event to Slack.  The event is queued and then sent asynchronously.
+func (c *Connection) Write(data []byte) {
+	c.out <- data
 }
 
-func (c *Connection) sendEvent(eventType string, channel string, text string) error {
-	c.sequence++
-	
-	response := &event{Id: c.sequence, Type: eventType, Channel: channel, Text: text}
-
-	responseJson, err := json.Marshal(response)
-	if err != nil {
-		return err
-	}
-		
-	c.out <- responseJson
-	
-	return nil
+// Read the next event from the connection to Slack or block until one is available
+func (c *Connection) Read() []byte {
+	return <-c.in
 }
 
-func (c *Connection) SendMessage(channel string, text string) error {
-	return c.sendEvent("message", channel, text)
-}
-
+// start the connection.  Starts receiving and sending events from/to Slack on the connection and,
+// in the event the connection is lost, will attempt to automatically reconnect to Slack.
 func (c *Connection) start(reconnectionHandler func() (*Config, *websocket.Conn, error)) {
-	for {
-		c.finish = make(chan struct{})
-		
-		go c.socketWriter()
-		c.socketReader()
-		
-		close(c.finish)
-		c.wg.Wait()
-		
-		connected := false
-		var ws *websocket.Conn
-		var config *Config
-		
-		for i := 1; !connected; i = i * 2 {
-			log.Printf("Lost connection to Slack - reconnecting in %d seconds", i)
-		
-			// wait 10 seconds before trying to reconnect
-			time.Sleep(time.Duration(i)*time.Second)
-		
-			var err error
-			config, ws, err = reconnectionHandler()
-		
-			if err != nil {
-				log.Printf("Error reconnecting: %s", err)
-			} else {
-				log.Printf("Connected to Slack")
-				connected = true
+	go func() {
+		for {
+			c.finish = make(chan struct{})
+
+			go c.socketWriter()
+			c.socketReader()
+
+			close(c.finish)
+			c.wg.Wait()
+
+			connected := false
+			var ws *websocket.Conn
+			var config *Config
+
+			for i := 1; !connected; i = i * 2 {
+				log.Printf("Lost connection to Slack - reconnecting in %d seconds", i)
+
+				// wait 10 seconds before trying to reconnect
+				time.Sleep(time.Duration(i) * time.Second)
+
+				var err error
+				config, ws, err = reconnectionHandler()
+
+				if err != nil {
+					log.Printf("Error reconnecting: %s", err)
+				} else {
+					log.Printf("Connected to Slack")
+					connected = true
+				}
 			}
+
+			c.ws = ws
+			c.config = *config
 		}
-		
-		c.ws = ws
-		c.config = *config
-	}
+	}()
 }
