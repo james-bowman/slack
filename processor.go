@@ -7,11 +7,22 @@ import (
 	"regexp"
 )
 
-type eventReadWriter interface {
-	Write([]byte)
-	Read() []byte
+// Processor type processes inbound events from Slack
+type Processor struct {
+	// Connection to Slack
+	con *Connection
+
+	// Slack user information relating to the bot account
+	self User
+
+	// a sequence number to uniquely identify sent messages and correlate with acks from Slack
+	sequence int
+
+	// map of event handler functions to handle types of Slack event
+	eventHandlers map[string]func(*Processor, map[string]interface{})
 }
 
+// event type represents an event sent to Slack e.g. messages
 type event struct {
 	Id      int    `json:"id"`
 	Type    string `json:"type"`
@@ -19,16 +30,7 @@ type event struct {
 	Text    string `json:"text"`
 }
 
-type Processor struct {
-	con *Connection
-
-	self User
-
-	sequence int
-
-	eventHandlers map[string]func(*Processor, map[string]interface{})
-}
-
+// send Event to Slack
 func (p *Processor) sendEvent(eventType string, channel string, text string) error {
 	p.sequence++
 
@@ -44,10 +46,12 @@ func (p *Processor) sendEvent(eventType string, channel string, text string) err
 	return nil
 }
 
+// Write the message on the specified channel to Slack
 func (p *Processor) Write(channel string, text string) error {
 	return p.sendEvent("message", channel, text)
 }
 
+// Start processing events from Slack
 func (p *Processor) Start() {
 	for {
 		msg := p.con.Read()
@@ -92,8 +96,11 @@ func (p *Processor) Start() {
 	}
 }
 
+// type for callbacks to receive messages from Slack
 type messageProcessor func(*Message)
 
+// Starts processing events on the connection from Slack and passes any messages to the hear callback and only
+// messages addressed to the bot to the respond callback
 func EventProcessor(con *Connection, respond messageProcessor, hear messageProcessor) {
 	p := Processor{
 		con:  con,
@@ -108,6 +115,7 @@ func EventProcessor(con *Connection, respond messageProcessor, hear messageProce
 	p.Start()
 }
 
+// finds the full name of the Slack user for the specified user ID
 func findUser(config Config, user string) (string, bool) {
 	var users []User
 
@@ -122,6 +130,7 @@ func findUser(config Config, user string) (string, bool) {
 	return "", false
 }
 
+// Invoke one of the specified callbacks for the message if appropriate
 func filterMessage(p *Processor, data map[string]interface{}, respond messageProcessor, hear messageProcessor) {
 	var userFullName string
 	var userId string

@@ -10,6 +10,7 @@ import (
 	"net/url"
 )
 
+// Authenticate with Slack to retrieve websocket connection URL.
 func handshake(apiUrl string, token string) (*Config, error) {
 	resp, err := http.PostForm(apiUrl, url.Values{"token": {token}})
 
@@ -39,6 +40,7 @@ func handshake(apiUrl string, token string) (*Config, error) {
 	return &data, nil
 }
 
+// Authenticate with Slack and upgrade to websocket connection
 func connectAndUpgrade(url string, token string) (*Config, *websocket.Conn, error) {
 	config, err := handshake(url, token)
 
@@ -55,6 +57,7 @@ func connectAndUpgrade(url string, token string) (*Config, *websocket.Conn, erro
 	return config, conn, nil
 }
 
+// Connect to Slack using the supplied authentication token
 func Connect(token string) (*Connection, error) {
 	apiStartUrl := "https://slack.com/api/rtm.start"
 

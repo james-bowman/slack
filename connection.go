@@ -22,12 +22,15 @@ const (
 	maxMessageSize = 1024
 )
 
+// Connection type represents the duplex websocket connection to Slack
 type Connection struct {
 	// The websocket connection.
 	ws *websocket.Conn
 
-	// Concurrency synchronisation for automatic reconnection.
-	wg     sync.WaitGroup
+	// waitgroup to wait for all go routines to terminate before attempting to reconnect.
+	wg sync.WaitGroup
+
+	// channel used to signal termination to socket writer go routine.
 	finish chan struct{}
 
 	// Buffered channel of outbound messages.
@@ -36,6 +39,7 @@ type Connection struct {
 	// Buffered channel of inbound messages.
 	in chan []byte
 
+	// information about the current Slack connection and team settings.
 	config Config
 }
 
