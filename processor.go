@@ -81,7 +81,7 @@ func (p *Processor) Start() {
 		}
 
 		if !isReply && !isMessageChangedEvent {
-			handler, ok := p.eventHandlers["type"]
+			handler, ok := p.eventHandlers[data["type"].(string)]
 
 			if ok {
 				handler(p, data)
