@@ -1,6 +1,7 @@
 # Slack RTM (Real Time Messaging) API Integration
 
-[![GoDoc](https://godoc.org/github.com/james-bowman/slack?status.svg)](https://godoc.org/github.com/james-bowman/slack)
+[![GoDoc](https://godoc.org/github.com/james-bowman/slack?status.svg)](https://godoc.org/github.com/james-bowman/slack) 
+[![Build Status](https://travis-ci.org/james-bowman/slack.svg?branch=master)](https://travis-ci.org/james-bowman/slack)
 
 This package allows integration with the [Slack Real Time Messaging API](https://api.slack.com/rtm) for consuming and publishing messages in real time to/from [Slack](https://slack.com).
 
