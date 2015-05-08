@@ -6,17 +6,3 @@
 // programatic access to APIs) and obtain an authentication token (https://api.slack.com/web#basics)
 // from Slack.
 package slack
-
-func Example() {
-	conn, err := slack.Connect(slackToken)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	replier := func(msg *slack.Message) {
-		msg.Respond(msg.Text)
-	}
-
-	slack.EventProcessor(conn, replier, nil)
-}
