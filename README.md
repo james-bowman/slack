@@ -27,7 +27,7 @@ The above snippet of code connects to the Slack RTM API over a web socket and st
 
 To also process messages not directed specifically at the connected user, a similar function can be passed as the third parameter to the EventProcessor method (either in addition to or instead of the second parameter).
 
-This package is used by [Talbot](http://github.com/james-bowman/talbot) a pre-built bot that is available to be used directly, extended or simply as an example.
+This package is used by [Talbot](http://github.com/james-bowman/talbot), a bot that is available to be used directly, extended or simply as an example.
 
 ## Features
 
@@ -46,6 +46,7 @@ Features implemented
 
 Still outstanding...
 
+- Chunking of large messages into multiple smaller messages for sending to Slack
 - Reliable message sending i.e. checking for Ack's for sent messages (especially upon reconnection)
 - Processing of Slack message changed events (currently ignored)
 - Processing other Slack event types
