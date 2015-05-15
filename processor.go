@@ -5,6 +5,13 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
+)
+
+const (
+	slackEventTypeMessage = "message"
+
+	maxMessageSize = 4000
 )
 
 // Processor type processes inbound events from Slack
@@ -48,7 +55,42 @@ func (p *Processor) sendEvent(eventType string, channel string, text string) err
 
 // Write the message on the specified channel to Slack
 func (p *Processor) Write(channel string, text string) error {
-	return p.sendEvent("message", channel, text)
+	if len(text) <= maxMessageSize {
+		return p.sendEvent(slackEventTypeMessage, channel, text)
+	}
+
+	for len(text) > 0 {
+		if len(text) <= maxMessageSize {
+			if err := p.sendEvent(slackEventTypeMessage, channel, text); err != nil {
+				return err
+			}
+			text = ""
+		} else {
+			// split message at a convenient place
+			maxSizeChunk := text[:maxMessageSize]
+
+			var breakIndex int
+			if lastLineBreak := strings.LastIndex(maxSizeChunk, "\n"); lastLineBreak > -1 {
+				breakIndex = lastLineBreak
+			} else if lastWordBreak := strings.LastIndexAny(maxSizeChunk, "\n\t .,/\\-(){}[]|=+*&"); lastWordBreak > -1 {
+				breakIndex = lastWordBreak
+			} else {
+				breakIndex = maxMessageSize
+			}
+
+			if err := p.sendEvent(slackEventTypeMessage, channel, text[:breakIndex]); err != nil {
+				return err
+			}
+
+			if breakIndex != maxMessageSize {
+				breakIndex++
+			}
+
+			text = text[breakIndex:]
+		}
+	}
+
+	return nil
 }
 
 // Start processing events from Slack
@@ -86,12 +128,6 @@ func (p *Processor) Start() {
 			if ok {
 				handler(p, data)
 			}
-			/*
-				switch data["type"] {
-				case "message":
-					filterMessage(con, data, respond, hear)
-				}
-			*/
 		}
 	}
 }
@@ -106,7 +142,7 @@ func EventProcessor(con *Connection, respond messageProcessor, hear messageProce
 		con:  con,
 		self: con.config.Self,
 		eventHandlers: map[string]func(*Processor, map[string]interface{}){
-			"message": func(p *Processor, event map[string]interface{}) {
+			slackEventTypeMessage: func(p *Processor, event map[string]interface{}) {
 				filterMessage(p, event, respond, hear)
 			},
 		},
