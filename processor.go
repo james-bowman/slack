@@ -55,10 +55,6 @@ func (p *Processor) sendEvent(eventType string, channel string, text string) err
 
 // Write the message on the specified channel to Slack
 func (p *Processor) Write(channel string, text string) error {
-	if len(text) <= maxMessageSize {
-		return p.sendEvent(slackEventTypeMessage, channel, text)
-	}
-
 	for len(text) > 0 {
 		if len(text) <= maxMessageSize {
 			if err := p.sendEvent(slackEventTypeMessage, channel, text); err != nil {
