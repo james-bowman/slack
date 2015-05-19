@@ -26,7 +26,10 @@ type Processor struct {
 	sequence int
 
 	// map of event handler functions to handle types of Slack event
-	eventHandlers map[string]func(*Processor, map[string]interface{})
+	eventHandlers map[string]func(*Processor, map[string]interface{}, []byte)
+
+	// map of users who are members of the Slack group
+	users map[string]User
 }
 
 // event type represents an event sent to Slack e.g. messages
@@ -35,6 +38,12 @@ type event struct {
 	Type    string `json:"type"`
 	Channel string `json:"channel"`
 	Text    string `json:"text"`
+}
+
+// user_change event type represents a user change event from Slack
+type userChangeEvent struct {
+	Type        string `json:"type"`
+	UpdatedUser User   `json:"user"`
 }
 
 // send Event to Slack
@@ -122,9 +131,25 @@ func (p *Processor) Start() {
 			handler, ok := p.eventHandlers[data["type"].(string)]
 
 			if ok {
-				handler(p, data)
+				handler(p, data, msg)
 			}
 		}
+	}
+}
+
+// updateUser updates or adds (if not already existing) the specifed user
+func (p *Processor) updateUser(user User) {
+	p.users[user.Id] = user
+}
+
+// onConnected is a callback for when the client connects (or reconnects) to Slack.
+func (p *Processor) onConnected(con *Connection) {
+	log.Println("Connected to Slack")
+	p.self = con.config.Self
+
+	p.users = make(map[string]User)
+	for _, user := range con.config.Users {
+		p.updateUser(user)
 	}
 }
 
@@ -137,29 +162,32 @@ func EventProcessor(con *Connection, respond messageProcessor, hear messageProce
 	p := Processor{
 		con:  con,
 		self: con.config.Self,
-		eventHandlers: map[string]func(*Processor, map[string]interface{}){
-			slackEventTypeMessage: func(p *Processor, event map[string]interface{}) {
+		eventHandlers: map[string]func(*Processor, map[string]interface{}, []byte){
+			slackEventTypeMessage: func(p *Processor, event map[string]interface{}, rawEvent []byte) {
 				filterMessage(p, event, respond, hear)
 			},
+			"user_change": func(p *Processor, event map[string]interface{}, rawEvent []byte) {
+				var userEvent userChangeEvent
+				err := json.Unmarshal(rawEvent, &userEvent)
+
+				if err != nil {
+					fmt.Printf("%T\n%s\n%#v\n", err, err, err)
+					switch v := err.(type) {
+					case *json.SyntaxError:
+						fmt.Println(string(rawEvent[v.Offset-40 : v.Offset]))
+					}
+					fmt.Printf("%s", rawEvent)
+				}
+				p.updateUser(userEvent.UpdatedUser)
+			},
+			"hello": func(p *Processor, event map[string]interface{}, rawEvent []byte) {
+				p.onConnected(con)
+			},
 		},
+		users: make(map[string]User),
 	}
 
 	p.Start()
-}
-
-// finds the full name of the Slack user for the specified user ID
-func findUser(config Config, user string) (string, bool) {
-	var users []User
-
-	users = config.Users
-
-	for i := 0; i < len(users); i++ {
-		if users[i].Id == user {
-			return users[i].RealName, true
-		}
-	}
-
-	return "", false
 }
 
 // Invoke one of the specified callbacks for the message if appropriate
@@ -170,7 +198,10 @@ func filterMessage(p *Processor, data map[string]interface{}, respond messagePro
 	user, ok := data["user"]
 	if ok {
 		userId = user.(string)
-		userFullName, _ = findUser(p.con.config, userId)
+		user, exists := p.users[userId]
+		if exists {
+			userFullName = user.RealName
+		}
 	}
 
 	// process messages directed at Talbot
