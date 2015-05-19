@@ -42,6 +42,7 @@ Features implemented
 - Automatic reconnection following a lost connection
 - Support for explicit web proxies (running on corporate LANs)
 - Chunking of large messages into multiple smaller messages for sending to Slack
+- Updating configuration based upon new member events, etc.
 
 ## To Do
 
@@ -50,5 +51,5 @@ Still outstanding...
 - Reliable message sending i.e. checking for Ack's for sent messages (especially upon reconnection)
 - Processing of Slack message changed events (currently ignored)
 - Processing other Slack event types
-- Updating configuration based upon new member events, etc.
+
 
