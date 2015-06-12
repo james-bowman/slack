@@ -112,7 +112,7 @@ func (p *Processor) Start() {
 			fmt.Printf("%T\n%s\n%#v\n", err, err, err)
 			switch v := err.(type) {
 			case *json.SyntaxError:
-				log.Println(string(msg[v.Offset-40 : v.Offset]))
+				fmt.Println(string(msg[v.Offset-40 : v.Offset]))
 			}
 			log.Printf("%s", msg)
 			continue
@@ -122,6 +122,14 @@ func (p *Processor) Start() {
 		_, isReply := data["reply_to"]
 		subtype, ok := data["subtype"]
 		var isMessageChangedEvent bool
+
+		//2015/05/20 02:09:37 {"text":null,"username":"Pingdom","bot_id":"B040BJ6NU","atta
+		//chments":[{"title":"Broker Portal is down (Incident #16)","text":"<http://broker
+		//.markelinternational.com|broker.markelinternational.com>  <https://my.pingdom.co
+		//m/|View details>","fallback":"Broker Portal is down (Incident 16)","color":"FF4D
+		//46"}],"type":"message","subtype":"bot_message","channel":"C030U0FGZ","ts":"14320
+		//84180.000054"}
+		//panic: interface conversion: interface is nil, not string
 
 		if ok {
 			isMessageChangedEvent = (subtype.(string) == "message_changed" || subtype.(string) == "message_deleted")
@@ -144,8 +152,8 @@ func (p *Processor) updateUser(user User) {
 
 // onConnected is a callback for when the client connects (or reconnects) to Slack.
 func (p *Processor) onConnected(con *Connection) {
-	log.Println("Connected to Slack")
 	p.self = con.config.Self
+	log.Printf("Connected to Slack as %s", p.self.Name)
 
 	p.users = make(map[string]User)
 	for _, user := range con.config.Users {
@@ -176,12 +184,15 @@ func EventProcessor(con *Connection, respond messageProcessor, hear messageProce
 					case *json.SyntaxError:
 						fmt.Println(string(rawEvent[v.Offset-40 : v.Offset]))
 					}
-					fmt.Printf("%s", rawEvent)
+					log.Printf("%s", rawEvent)
 				}
 				p.updateUser(userEvent.UpdatedUser)
 			},
 			"hello": func(p *Processor, event map[string]interface{}, rawEvent []byte) {
 				p.onConnected(con)
+			},
+			"error": func(p *Processor, event map[string]interface{}, rawEvent []byte) {
+				log.Printf("Error received from Slack: %s", rawEvent)
 			},
 		},
 		users: make(map[string]User),
