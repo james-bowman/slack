@@ -112,28 +112,29 @@ func (p *Processor) Write(channel string, text string) error {
 		} else {
 			// split message at a convenient place
 			var breakIndex int
+			maxSizeChunk := text
 
 			if len(text) > maxMessageSize {
 				maxSizeChunk := text[:maxMessageSize]
-
-				if lastLineBreak := strings.LastIndex(maxSizeChunk, "\n"); lastLineBreak > -1 {
-					breakIndex = lastLineBreak
-				} else if lastWordBreak := strings.LastIndexAny(maxSizeChunk, "\n\t .,/\\-(){}[]|=+*&"); lastWordBreak > -1 {
-					breakIndex = lastWordBreak
-				} else {
-					breakIndex = maxMessageSize
-				}
-			} else {
+				lines = strings.Count(maxSizeChunk, "\n")
+			}
+			if lines > maxMessageLines {
 				// too many lines to the message
 				var index int
-				for n := 0; index < len(text) && n < lines; n++ {
-					p := strings.Index(text[index:], "\n")
+				for n := 0; index < len(maxSizeChunk) && n < lines; n++ {
+					p := strings.Index(maxSizeChunk[index:], "\n")
 					if p == -1 {
 						break
 					}
 					index += p
 				}
 				breakIndex = index
+			} else if lastLineBreak := strings.LastIndex(maxSizeChunk, "\n"); lastLineBreak > -1 {
+				breakIndex = lastLineBreak
+			} else if lastWordBreak := strings.LastIndexAny(maxSizeChunk, "\n\t .,/\\-(){}[]|=+*&"); lastWordBreak > -1 {
+				breakIndex = lastWordBreak
+			} else {
+				breakIndex = maxMessageSize
 			}
 
 			if err := p.sendEvent(slackEventTypeMessage, channel, text[:breakIndex]); err != nil {
