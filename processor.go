@@ -11,7 +11,8 @@ import (
 const (
 	slackEventTypeMessage = "message"
 
-	maxMessageSize = 4000
+	maxMessageSize  = 4000
+	maxMessageLines = 25
 )
 
 // Processor type processes inbound events from Slack
@@ -62,6 +63,7 @@ func (p *Processor) sendEvent(eventType string, channel string, text string) err
 	return nil
 }
 
+/*
 // Write the message on the specified channel to Slack
 func (p *Processor) Write(channel string, text string) error {
 	for len(text) > 0 {
@@ -81,6 +83,57 @@ func (p *Processor) Write(channel string, text string) error {
 				breakIndex = lastWordBreak
 			} else {
 				breakIndex = maxMessageSize
+			}
+
+			if err := p.sendEvent(slackEventTypeMessage, channel, text[:breakIndex]); err != nil {
+				return err
+			}
+
+			if breakIndex != maxMessageSize {
+				breakIndex++
+			}
+
+			text = text[breakIndex:]
+		}
+	}
+
+	return nil
+}
+*/
+// Write the message on the specified channel to Slack
+func (p *Processor) Write(channel string, text string) error {
+	for len(text) > 0 {
+		lines := strings.Count(text, "\n")
+		if len(text) <= maxMessageSize && lines <= maxMessageLines {
+			if err := p.sendEvent(slackEventTypeMessage, channel, text); err != nil {
+				return err
+			}
+			text = ""
+		} else {
+			// split message at a convenient place
+			var breakIndex int
+
+			if len(text) > maxMessageSize {
+				maxSizeChunk := text[:maxMessageSize]
+
+				if lastLineBreak := strings.LastIndex(maxSizeChunk, "\n"); lastLineBreak > -1 {
+					breakIndex = lastLineBreak
+				} else if lastWordBreak := strings.LastIndexAny(maxSizeChunk, "\n\t .,/\\-(){}[]|=+*&"); lastWordBreak > -1 {
+					breakIndex = lastWordBreak
+				} else {
+					breakIndex = maxMessageSize
+				}
+			} else {
+				// too many lines to the message
+				var index int
+				for n := 0; index < len(text) && n < lines; n++ {
+					p := strings.Index(text[index:], "\n")
+					if p == -1 {
+						break
+					}
+					index += p
+				}
+				breakIndex = index
 			}
 
 			if err := p.sendEvent(slackEventTypeMessage, channel, text[:breakIndex]); err != nil {
