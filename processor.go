@@ -123,14 +123,6 @@ func (p *Processor) Start() {
 		subtype, ok := data["subtype"]
 		var isMessageChangedEvent bool
 
-		//2015/05/20 02:09:37 {"text":null,"username":"Pingdom","bot_id":"B040BJ6NU","atta
-		//chments":[{"title":"Broker Portal is down (Incident #16)","text":"<http://broker
-		//.markelinternational.com|broker.markelinternational.com>  <https://my.pingdom.co
-		//m/|View details>","fallback":"Broker Portal is down (Incident 16)","color":"FF4D
-		//46"}],"type":"message","subtype":"bot_message","channel":"C030U0FGZ","ts":"14320
-		//84180.000054"}
-		//panic: interface conversion: interface is nil, not string
-
 		if ok {
 			isMessageChangedEvent = (subtype.(string) == "message_changed" || subtype.(string) == "message_deleted")
 		}
@@ -219,7 +211,7 @@ func filterMessage(p *Processor, data map[string]interface{}, respond messagePro
 	r, _ := regexp.Compile("^(<@" + p.self.Id + ">|@?" + p.self.Name + "):? (.+)")
 
 	text, ok := data["text"]
-	if !ok {
+	if !ok || text == nil {
 		return
 	}
 
