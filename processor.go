@@ -118,10 +118,10 @@ func (p *Processor) Write(channel string, text string) error {
 				maxSizeChunk := text[:maxMessageSize]
 				lines = strings.Count(maxSizeChunk, "\n")
 			}
+
 			if lines > maxMessageLines {
-				// too many lines to the message
 				var index int
-				for n := 0; index < len(maxSizeChunk) && n < lines; n++ {
+				for n := 0; index < len(maxSizeChunk) && n < maxMessageLines; n++ {
 					p := strings.Index(maxSizeChunk[index:], "\n")
 					if p == -1 {
 						break
