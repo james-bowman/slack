@@ -126,7 +126,7 @@ func (p *Processor) Write(channel string, text string) error {
 					if p == -1 {
 						break
 					}
-					index += p
+					index += p + 1
 				}
 				breakIndex = index
 			} else if lastLineBreak := strings.LastIndex(maxSizeChunk, "\n"); lastLineBreak > -1 {
@@ -141,7 +141,7 @@ func (p *Processor) Write(channel string, text string) error {
 				return err
 			}
 
-			if breakIndex != maxMessageSize {
+			if breakIndex != maxMessageSize && lines <= maxMessageLines {
 				breakIndex++
 			}
 
