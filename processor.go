@@ -63,43 +63,6 @@ func (p *Processor) sendEvent(eventType string, channel string, text string) err
 	return nil
 }
 
-/*
-// Write the message on the specified channel to Slack
-func (p *Processor) Write(channel string, text string) error {
-	for len(text) > 0 {
-		if len(text) <= maxMessageSize {
-			if err := p.sendEvent(slackEventTypeMessage, channel, text); err != nil {
-				return err
-			}
-			text = ""
-		} else {
-			// split message at a convenient place
-			maxSizeChunk := text[:maxMessageSize]
-
-			var breakIndex int
-			if lastLineBreak := strings.LastIndex(maxSizeChunk, "\n"); lastLineBreak > -1 {
-				breakIndex = lastLineBreak
-			} else if lastWordBreak := strings.LastIndexAny(maxSizeChunk, "\n\t .,/\\-(){}[]|=+*&"); lastWordBreak > -1 {
-				breakIndex = lastWordBreak
-			} else {
-				breakIndex = maxMessageSize
-			}
-
-			if err := p.sendEvent(slackEventTypeMessage, channel, text[:breakIndex]); err != nil {
-				return err
-			}
-
-			if breakIndex != maxMessageSize {
-				breakIndex++
-			}
-
-			text = text[breakIndex:]
-		}
-	}
-
-	return nil
-}
-*/
 // Write the message on the specified channel to Slack
 func (p *Processor) Write(channel string, text string) error {
 	for len(text) > 0 {
